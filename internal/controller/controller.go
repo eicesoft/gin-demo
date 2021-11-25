@@ -1,16 +1,20 @@
 package controller
 
-import "eicesoft/web-demo/pkg/core"
-
-type RouteInfo struct {
-	Path    string
-	Closure core.HandlerFunc
-}
+import (
+	"eicesoft/web-demo/pkg/core"
+)
 
 type RouteInterface interface {
 	Params() (string, core.HandlerFunc)
 }
 
-func (r *RouteInfo) Params() (string, core.HandlerFunc) {
-	return r.Path, r.Closure
+// IdRequest Id基本请求
+type IdRequest struct {
+	Id int `form:"id"`
+}
+
+// PageRequest 分页基本请求
+type PageRequest struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
 }

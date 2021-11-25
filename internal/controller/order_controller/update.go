@@ -1,7 +1,6 @@
 package order_controller
 
 import (
-	"eicesoft/web-demo/internal/controller"
 	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/internal/service/order_service"
 	"eicesoft/web-demo/pkg/core"
@@ -13,8 +12,9 @@ type updateResponse struct {
 	Id int32 `json:"id"` // 主键ID
 }
 
-func (h *handler) Update() *controller.RouteInfo {
-	return &controller.RouteInfo{
+func (h *handler) Update() *core.RouteInfo {
+	return &core.RouteInfo{
+		Method: core.POST,
 		Path: "update",
 		Closure: func(c core.Context) {
 			req := new(order_service.OrderInfo)
@@ -22,7 +22,8 @@ func (h *handler) Update() *controller.RouteInfo {
 				c.AbortWithError(errno.NewError(
 					http.StatusBadRequest,
 					message.ParamBindError,
-					message.Text(message.ParamBindError)).WithErr(err),
+					message.Text(message.ParamBindError),
+					err).WithErr(err),
 				)
 				return
 			}

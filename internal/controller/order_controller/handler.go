@@ -1,7 +1,6 @@
 package order_controller
 
 import (
-	"eicesoft/web-demo/internal/controller"
 	"eicesoft/web-demo/internal/service/order_service"
 	"eicesoft/web-demo/pkg/core"
 	"eicesoft/web-demo/pkg/db"
@@ -16,9 +15,9 @@ var _ Handler = (*handler)(nil)
 // Handler 用户控制器接口
 type Handler interface {
 	RegistryRouter(r *mux.Resource)
-	List() *controller.RouteInfo
-	Create() *controller.RouteInfo
-	Update() *controller.RouteInfo
+	List() *core.RouteInfo
+	Create() *core.RouteInfo
+	Update() *core.RouteInfo
 }
 
 type handler struct {
@@ -37,12 +36,9 @@ func New(logger *zap.Logger, db db.Repo) Handler {
 
 func (h *handler) RegistryRouter(r *mux.Resource) {
 	order := r.Mux.Group(GroupRouterName, core.WrapAuthHandler(r.Middles.Jwt))
-	//typeOfA := reflect.TypeOf(h)
-	//for i := 0; i <typeOfA.NumMethod(); i++ {
-	//	f := typeOfA.Method(i)
-	//	println(f.Name)
-	//}
-	order.GET(h.List().Params())
-	order.POST(h.Create().Params())
-	order.POST(h.Update().Params())
+	order.WrapRouters(
+		h.List(),
+		h.Create(),
+		h.Update(),
+	)
 }

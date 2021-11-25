@@ -206,6 +206,7 @@ func (c *context) ResponseWriter() gin.ResponseWriter {
 func (c *context) Payload(payload interface{}) {
 	c.ctx.Set(_PayloadName, payload)
 }
+
 func (c *context) getPayload() interface{} {
 	if payload, ok := c.ctx.Get(_PayloadName); ok != false {
 		return payload

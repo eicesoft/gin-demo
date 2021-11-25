@@ -18,13 +18,13 @@ type Hook interface {
 }
 
 type hook struct {
-	ctx chan os.Signal
+	quit chan os.Signal
 }
 
 // NewHook create a Hook instance
 func NewHook() Hook {
 	hook := &hook{
-		ctx: make(chan os.Signal, 1),
+		quit: make(chan os.Signal, 1),
 	}
 
 	return hook.WithSignals(syscall.SIGINT, syscall.SIGTERM)
@@ -32,7 +32,7 @@ func NewHook() Hook {
 
 func (h *hook) WithSignals(signals ...syscall.Signal) Hook {
 	for _, s := range signals {
-		signal.Notify(h.ctx, s)
+		signal.Notify(h.quit, s)
 	}
 
 	return h
@@ -40,9 +40,9 @@ func (h *hook) WithSignals(signals ...syscall.Signal) Hook {
 
 func (h *hook) Close(funcs ...func()) {
 	select {
-	case <-h.ctx:
+	case <-h.quit:
 	}
-	signal.Stop(h.ctx)
+	signal.Stop(h.quit)
 
 	for _, f := range funcs {
 		f()

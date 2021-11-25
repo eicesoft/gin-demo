@@ -3,6 +3,7 @@ package logger
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"os"
 	"path/filepath"
@@ -81,6 +82,24 @@ func WithFileP(file string) Option {
 
 	return func(opt *option) {
 		opt.file = zapcore.Lock(f)
+	}
+}
+
+func WithFileRotationP(file string) Option {
+	dir := filepath.Dir(file)
+	if err := os.MkdirAll(dir, 0766); err != nil {
+		panic(err)
+	}
+
+	return func(opt *option) {
+		opt.file = &lumberjack.Logger{
+			Filename:   file, // 文件路径
+			MaxSize:    256,  // 单个文件最大尺寸，默认单位 M
+			MaxBackups: 10,   // 最多保留 300 个备份
+			MaxAge:     7,    // 最大时间，默认单位 day
+			LocalTime:  true, // 使用本地时间
+			Compress:   true, // 是否压缩 disabled by default
+		}
 	}
 }
 

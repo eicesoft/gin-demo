@@ -4,6 +4,7 @@ import (
 	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/pkg/core"
 	"eicesoft/web-demo/pkg/errno"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -47,7 +48,8 @@ func (h *handler) Detail() (string, core.HandlerFunc) {
 			c.AbortWithError(errno.NewError(
 				http.StatusBadRequest,
 				message.ParamBindError,
-				message.Text(message.ParamBindError)).WithErr(err),
+				message.Text(message.ParamBindError),
+				err).WithErr(err),
 			)
 			return
 		}
@@ -61,7 +63,8 @@ func (h *handler) Detail() (string, core.HandlerFunc) {
 			c.AbortWithError(errno.NewError(
 				http.StatusBadRequest,
 				message.ParamBindError,
-				message.Text(message.ParamBindError)),
+				message.Text(message.ParamBindError),
+				errors.New("未知错误")),
 			)
 			return
 		}

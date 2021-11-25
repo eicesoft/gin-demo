@@ -10,6 +10,7 @@ import (
 	"eicesoft/web-demo/router"
 	"flag"
 	"fmt"
+	"github.com/zh-five/xdaemon"
 	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
@@ -33,11 +34,15 @@ func init() {
 // @license.name MIT
 // @BasePath
 func main() {
+	if env.Get().IsDaemon() == true {
+		xdaemon.Background("", true)
+	}
+
 	loggers, err := logger.NewJSONLogger(
 		logger.WithDebugLevel(),
 		logger.WithField("app", fmt.Sprintf("%s[%s]", config.Get().Server.Name, env.Get().Value())),
 		logger.WithTimeLayout("2006-01-02 15:04:05"),
-		logger.WithFileP(config.ProjectLogFile()),
+		logger.WithFileRotationP(config.ProjectLogFile()),
 	)
 	if err != nil {
 		panic(err)
@@ -72,7 +77,7 @@ func main() {
 	shutdown.NewHook().Close(
 		// 关闭 http server
 		func() {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
 			if err := server.Shutdown(ctx); err != nil {

@@ -13,10 +13,12 @@ import (
 func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
 	auth := ctx.GetHeader("Authorization")
 	if auth == "" {
+		e := errors.New("Header 中缺少 Authorization 参数")
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError)).WithErr(errors.New("Header 中缺少 Authorization 参数"))
+			message.Text(message.AuthorizationError),
+			e).WithErr(e)
 
 		return
 	}
@@ -27,17 +29,20 @@ func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError)).WithErr(errParse)
+			message.Text(message.AuthorizationError),
+			errParse).WithErr(errParse)
 
 		return
 	}
 
 	userId = claims.UserID
 	if userId <= 0 {
+		e := errors.New("claims.UserID <= 0 ")
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError)).WithErr(errors.New("claims.UserID <= 0 "))
+			message.Text(message.AuthorizationError),
+			e).WithErr(e)
 
 		return
 	}

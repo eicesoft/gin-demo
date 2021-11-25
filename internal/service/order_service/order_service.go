@@ -51,11 +51,6 @@ func (o *orderService) Update(ctx core.Context, orderInfo *OrderInfo) (err error
 func (o *orderService) Create(ctx core.Context, orderInfo *OrderInfo) (id int32, err error) {
 	orderModel := orders.NewModel()
 	orderModel.Assign(orderInfo)
-	//core.StructCopy(orderModel, orderInfo)
-	//orderModel.CompanyId = orderInfo.CompanyId
-	//orderModel.OrderNo = orderInfo.OrderNo
-	//orderModel.MemberId = orderInfo.MemberId
-	//orderModel.CustomerName = orderInfo.CustomerName
 	orderModel.DeviceInfo = "{}"
 
 	id, err = orderModel.Create(o.db.GetDbW().WithContext(ctx.RequestContext()))

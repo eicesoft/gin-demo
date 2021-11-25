@@ -1,15 +1,12 @@
 package order_controller
 
 import (
-	"eicesoft/web-demo/internal/controller"
-	orders "eicesoft/web-demo/internal/model/order"
 	"eicesoft/web-demo/pkg/core"
 )
 
-type orderListResponse struct {
-	Code int             `json:"name"`
-	Data []*orders.Order `json:"data"`
-}
+//type orderListResponse struct {
+//	Data []*orders.Order `json:"data"`
+//}
 
 // List 订单列表
 // @Summary 订单列表
@@ -22,15 +19,16 @@ type orderListResponse struct {
 // @Failure 400 {object} message.Failure
 // @Failure 401 {object} message.Failure
 // @Router /order/list [get]
-func (h *handler) List() *controller.RouteInfo {
-	return &controller.RouteInfo{
+func (h *handler) List() *core.RouteInfo {
+	return &core.RouteInfo{
+		Method: core.GET,
 		Path: "list",
 		Closure: func(c core.Context) {
 			list := h.orderService.List(c)
-			res := new(orderListResponse)
-			res.Code = 200
-			res.Data = list
-			c.Payload(res)
+			//res := new(orderListResponse)
+			//res.Code = 200
+			//res.Data = list
+			c.Payload(list)
 		},
 	}
 }
