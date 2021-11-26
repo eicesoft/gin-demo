@@ -18,12 +18,12 @@ func init() {
 		flag.Parse()
 	}
 
-	controller = *flagController
-	if controller == "" {
-		// panic(errors.New("-c 参数必须指定"))
-		flag.PrintDefaults()
+	if *flagController == "" {
+		flag.Usage()
 		os.Exit(1)
 	}
+
+	controller = *flagController
 }
 
 func main() {

@@ -2,9 +2,9 @@ package auth_controller
 
 import (
 	"eicesoft/web-demo/config"
-	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/pkg/core"
 	"eicesoft/web-demo/pkg/errno"
+	"eicesoft/web-demo/pkg/message"
 	"eicesoft/web-demo/pkg/token"
 	"math/rand"
 	"net/http"
@@ -32,7 +32,7 @@ func (h *handler) Get() *core.RouteInfo {
 				c.AbortWithError(errno.NewError(
 					http.StatusBadRequest,
 					message.ParamBindError,
-					message.Text(message.ParamBindError),
+					message.Get().Text(message.ParamBindError),
 					err).WithErr(err),
 				)
 				return
@@ -44,7 +44,7 @@ func (h *handler) Get() *core.RouteInfo {
 				c.AbortWithError(errno.NewError(
 					http.StatusBadRequest,
 					message.AuthorizationError,
-					message.Text(message.AuthorizationError),
+					message.Get().Text(message.AuthorizationError),
 					err).WithErr(err),
 				)
 				return

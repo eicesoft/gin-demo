@@ -71,9 +71,9 @@ func init() {
 	env := flag.String("env", "", "请输入运行环境:\n dev:开发环境\n test:测试环境\n stag:预上线环境\n prod:正式环境\n")
 	daemon := flag.Bool("d", false, "是否后台守护进程方式运行")
 
-	if !flag.Parsed() {
-		flag.Parse()
-	}
+	// if !flag.Parsed() {
+	// 	flag.Parse()
+	// }
 
 	switch strings.ToLower(strings.TrimSpace(*env)) {
 	case "dev":

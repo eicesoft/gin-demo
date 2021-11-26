@@ -1,12 +1,13 @@
 package user_controller
 
 import (
-	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/pkg/core"
 	"eicesoft/web-demo/pkg/errno"
+	"eicesoft/web-demo/pkg/message"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type detailRequest struct {
@@ -48,7 +49,7 @@ func (h *handler) Detail() (string, core.HandlerFunc) {
 			c.AbortWithError(errno.NewError(
 				http.StatusBadRequest,
 				message.ParamBindError,
-				message.Text(message.ParamBindError),
+				message.Get().Text(message.ParamBindError),
 				err).WithErr(err),
 			)
 			return
@@ -63,7 +64,7 @@ func (h *handler) Detail() (string, core.HandlerFunc) {
 			c.AbortWithError(errno.NewError(
 				http.StatusBadRequest,
 				message.ParamBindError,
-				message.Text(message.ParamBindError),
+				message.Get().Text(message.ParamBindError),
 				errors.New("未知错误")),
 			)
 			return

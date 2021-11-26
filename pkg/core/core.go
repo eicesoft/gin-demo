@@ -1,14 +1,24 @@
 package core
 
 import (
+	stdctx "context"
 	"eicesoft/web-demo/config"
 	_ "eicesoft/web-demo/docs"
-	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/pkg/color"
+	"eicesoft/web-demo/pkg/db"
 	"eicesoft/web-demo/pkg/env"
 	"eicesoft/web-demo/pkg/errno"
+	"eicesoft/web-demo/pkg/message"
+	"eicesoft/web-demo/pkg/metrics"
 	"eicesoft/web-demo/pkg/trace"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
+	"net/url"
+	"reflect"
+	"runtime/debug"
+	"time"
+
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	cors "github.com/rs/cors/wrapper/gin"
@@ -16,11 +26,6 @@ import (
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
-	"net/http"
-	"net/url"
-	"reflect"
-	"runtime/debug"
-	"time"
 )
 
 const (
@@ -82,6 +87,8 @@ func wrapHandlers(handlers ...HandlerFunc) []gin.HandlerFunc {
 	return funcs
 }
 
+type RecordMetrics func(method, uri string, success bool, httpCode, businessCode int, costSeconds float64, traceId string)
+
 // WrapAuthHandler 用来处理 Auth 的入口，在之后的handler中只需 ctx.UserID()
 func WrapAuthHandler(handler func(Context) (userID int64, err errno.Error)) HandlerFunc {
 	return func(ctx Context) {
@@ -111,10 +118,25 @@ var _ Mux = (*mux)(nil)
 type Mux interface {
 	http.Handler
 	Group(relativePath string, handlers ...HandlerFunc) RouterGroup
+	StartServer()
+	Shutdown()
+	GetDB() db.Repo
+	GetLogger() *zap.Logger
 }
 
 type mux struct {
+	logger *zap.Logger
+	db     *db.DbRepo
 	engine *gin.Engine
+	server *http.Server
+}
+
+func (m *mux) GetDB() db.Repo {
+	return m.db
+}
+
+func (m *mux) GetLogger() *zap.Logger {
+	return m.logger
 }
 
 func (m *mux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -127,11 +149,40 @@ func (m *mux) Group(relativePath string, handlers ...HandlerFunc) RouterGroup {
 	}
 }
 
+func (m *mux) StartServer() {
+	m.server = &http.Server{
+		Addr:           ":" + config.Get().Server.Port,
+		Handler:        m,
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 28, //256M
+	}
+
+	go func() {
+		if err := m.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			m.logger.Fatal("http server startup err", zap.Error(err))
+		}
+	}()
+}
+
+func (m *mux) Shutdown() {
+	ctx, cancel := stdctx.WithTimeout(stdctx.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := m.server.Shutdown(ctx); err != nil {
+		m.logger.Error("server shutdown err", zap.Error(err))
+	} else {
+		m.logger.Info("server shutdown success")
+	}
+
+	m.db.Shutdown(m.logger)
+}
+
 func DisableTrace(ctx Context) {
 	ctx.disableTrace()
 }
 
-func New(logger *zap.Logger) (Mux, error) {
+func New(logger *zap.Logger, db *db.DbRepo) (Mux, error) {
 	ui := `
  ██████╗ ██╗    ██╗███████╗██████╗      █████╗ ██████╗ ██╗
 ██╔════╝ ██║    ██║██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██║
@@ -145,19 +196,26 @@ func New(logger *zap.Logger) (Mux, error) {
 
 	mux := &mux{
 		engine: gin.New(),
+		logger: logger,
+		db:     db,
 	}
 
 	fmt.Println(color.Green(fmt.Sprintf("* listen port: %s", config.Get().Server.Port)))
 	fmt.Println(color.Green(fmt.Sprintf("* run env: %s", env.Get().Value())))
 
-	if !env.Get().IsProd() {
+	if !env.Get().IsProd() {	//pprof 路由加载
 		pprof.Register(mux.engine) // register pprof to gin
 		fmt.Println(color.Green("* register pprof"))
 	}
 
-	if !env.Get().IsProd() {
+	if !env.Get().IsProd() {	// Swagger doc 路由
 		mux.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // register swagger
 		fmt.Println(color.Green("* register swagger router"))
+	}
+
+	if !env.Get().IsProd() {
+		mux.engine.GET("/metrics", gin.WrapH(promhttp.Handler())) // register prometheus
+		fmt.Println(color.Green("* register prometheus"))
 	}
 
 	if env.Get().IsProd() { //开启限流
@@ -170,7 +228,7 @@ func New(logger *zap.Logger) (Mux, error) {
 				context.AbortWithError(errno.NewError(
 					http.StatusTooManyRequests,
 					message.TooManyRequests,
-					message.Text(message.TooManyRequests),
+					message.Get().Text(message.TooManyRequests),
 					fmt.Errorf("")),
 				)
 				return
@@ -180,8 +238,8 @@ func New(logger *zap.Logger) (Mux, error) {
 		})
 	}
 
-	// recover两次，防止处理时发生panic，尤其是在OnPanicNotify中。
-	mux.engine.Use(func(ctx *gin.Context) {
+	// recover两次，防止处理时发生panic
+	mux.engine.Use(func(ctx *gin.Context) {	// Error 处理
 		defer func() {
 			if err := recover(); err != nil {
 				//panic(err)
@@ -192,7 +250,7 @@ func New(logger *zap.Logger) (Mux, error) {
 		ctx.Next()
 	})
 
-	if config.Get().Server.Cors {
+	if config.Get().Server.Cors {	//Cors middleware
 		fmt.Println(color.Green("* register cors middleware"))
 		mux.engine.Use(cors.New(cors.Options{
 			AllowedOrigins: []string{"*"},
@@ -210,12 +268,13 @@ func New(logger *zap.Logger) (Mux, error) {
 		}))
 	}
 
-	mux.engine.Use(func(ctx *gin.Context) {
+	mux.engine.Use(func(ctx *gin.Context) {	//core Process
 		coreProcess(ctx, logger)
 	})
 
 	mux.engine.NoMethod(wrapHandlers(DisableTrace)...)
 	mux.engine.NoRoute(wrapHandlers(DisableTrace)...)
+
 	system := mux.Group("/system")
 	{
 		system.GET("/health", func(ctx Context) {
@@ -262,7 +321,7 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 			context.AbortWithError(errno.NewError(
 				http.StatusInternalServerError,
 				message.ServerError,
-				message.Text(message.ServerError),
+				message.Get().Text(message.ServerError),
 				fmt.Errorf("%+v", err)),
 			)
 		}
@@ -276,7 +335,7 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 			businessCodeMsg string
 			errorStack      string
 			abortErr        error
-			//traceId         string
+			traceId         string
 		)
 
 		context.SetHeader(ServerHeader, ServerName)
@@ -296,7 +355,7 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 
 				if x := context.Trace(); x != nil {
 					context.SetHeader(trace.Header, x.ID())
-					//traceId = x.ID()
+					traceId = x.ID()
 				}
 
 				ctx.JSON(err.GetHttpCode(), &message.Failure{
@@ -310,7 +369,7 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 			if response != nil {
 				if x := context.Trace(); x != nil {
 					context.SetHeader(trace.Header, x.ID()) //设置Trace Id
-					//traceId = x.ID()
+					traceId = x.ID()
 				}
 				res := new(BaseResponse)
 				res.Code = 200
@@ -318,6 +377,20 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 				ctx.JSON(http.StatusOK, res)
 			}
 		}
+		uri := context.URI()
+		if alias := context.Alias(); alias != "" {
+			uri = alias
+		}
+
+		metrics.RecordMetrics(
+			context.Method(),
+			uri,
+			!ctx.IsAborted() && ctx.Writer.Status() == http.StatusOK,
+			ctx.Writer.Status(),
+			businessCode,
+			time.Since(ts).Seconds(),
+			traceId,
+		)
 
 		var t *trace.Trace
 		if x := context.Trace(); x != nil {
@@ -327,7 +400,6 @@ func coreProcess(ctx *gin.Context, logger *zap.Logger) {
 		}
 		decodedURL, _ := url.QueryUnescape(ctx.Request.URL.RequestURI())
 		t.WithRequest(&trace.Request{
-			TTL:        "un-limit",
 			Method:     ctx.Request.Method,
 			DecodedURL: decodedURL,
 			//Header:     ctx.Request.Header,

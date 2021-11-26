@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"eicesoft/web-demo/config"
-	"eicesoft/web-demo/internal/message"
 	"eicesoft/web-demo/pkg/core"
 	"eicesoft/web-demo/pkg/errno"
+	"eicesoft/web-demo/pkg/message"
 	"eicesoft/web-demo/pkg/token"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
@@ -17,7 +18,7 @@ func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError),
+			message.Get().Text(message.AuthorizationError),
 			e).WithErr(e)
 
 		return
@@ -29,7 +30,7 @@ func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError),
+			message.Get().Text(message.AuthorizationError),
 			errParse).WithErr(errParse)
 
 		return
@@ -41,7 +42,7 @@ func (m *middleware) Jwt(ctx core.Context) (userId int64, err errno.Error) {
 		err = errno.NewError(
 			http.StatusUnauthorized,
 			message.AuthorizationError,
-			message.Text(message.AuthorizationError),
+			message.Get().Text(message.AuthorizationError),
 			e).WithErr(e)
 
 		return

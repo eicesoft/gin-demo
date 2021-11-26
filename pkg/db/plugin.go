@@ -1,12 +1,13 @@
 package db
 
 import (
-	"eicesoft/web-demo/pkg/core"
+	"eicesoft/web-demo/pkg/context"
 	"eicesoft/web-demo/pkg/time_parse"
 	"eicesoft/web-demo/pkg/trace"
+	"time"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/utils"
-	"time"
 )
 
 const (
@@ -49,7 +50,7 @@ func before(db *gorm.DB) {
 
 func after(db *gorm.DB) {
 	_ctx := db.Statement.Context
-	ctx, ok := _ctx.(core.StdContext)
+	ctx, ok := _ctx.(context.StdContext)
 	if !ok {
 		return
 	}

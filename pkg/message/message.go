@@ -16,6 +16,7 @@ const (
 	CallHTTPError      = 10105
 )
 
+var msg = New()
 var codeText = map[int]string{
 	ServerError:        "Internal Server Error",
 	TooManyRequests:    "Too Many Requests",
@@ -24,6 +25,34 @@ var codeText = map[int]string{
 	CallHTTPError:      "调用第三方 HTTP 接口失败",
 }
 
-func Text(code int) string {
-	return codeText[code]
+type Message struct {
+	codeMessage map[int]string
+}
+
+type MessageInterface interface {
+	Add(code int, message string)
+	Text(code int) string
+}
+
+func New() *Message {
+	return &Message{
+		codeMessage: codeText,
+	}
+}
+
+func Get() *Message {
+	return msg
+}
+
+func (m *Message) Add(code int, message string) {
+	m.codeMessage[code] = message
+}
+
+func (m *Message) Text(code int) string {
+	msg, ok := m.codeMessage[code]
+	if ok {
+		return msg
+	} else {
+		return ""
+	}
 }

@@ -3,14 +3,16 @@ package db
 import (
 	"eicesoft/web-demo/config"
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"time"
 )
 
-var _ Repo = (*dbRepo)(nil)
+var _ Repo = (*DbRepo)(nil)
 
 type Repo interface {
 	p()
@@ -18,14 +20,15 @@ type Repo interface {
 	GetDbW() *gorm.DB
 	DbRClose() error
 	DbWClose() error
+	Shutdown(logger *zap.Logger)
 }
 
-type dbRepo struct {
+type DbRepo struct {
 	DbR *gorm.DB
 	DbW *gorm.DB
 }
 
-func New() (Repo, error) {
+func New() (*DbRepo, error) {
 	cfg := config.Get().MySQL
 	dbr, err := dbConnect(cfg.Read.User, cfg.Read.Pass, cfg.Read.Addr, cfg.Read.Name)
 	if err != nil {
@@ -37,23 +40,23 @@ func New() (Repo, error) {
 		return nil, err
 	}
 
-	return &dbRepo{
+	return &DbRepo{
 		DbR: dbr,
 		DbW: dbw,
 	}, nil
 }
 
-func (d *dbRepo) p() {}
+func (d *DbRepo) p() {}
 
-func (d *dbRepo) GetDbR() *gorm.DB {
+func (d *DbRepo) GetDbR() *gorm.DB {
 	return d.DbR
 }
 
-func (d *dbRepo) GetDbW() *gorm.DB {
+func (d *DbRepo) GetDbW() *gorm.DB {
 	return d.DbW
 }
 
-func (d *dbRepo) DbRClose() error {
+func (d *DbRepo) DbRClose() error {
 	sqlDB, err := d.DbR.DB()
 	if err != nil {
 		return err
@@ -61,12 +64,26 @@ func (d *dbRepo) DbRClose() error {
 	return sqlDB.Close()
 }
 
-func (d *dbRepo) DbWClose() error {
+func (d *DbRepo) DbWClose() error {
 	sqlDB, err := d.DbW.DB()
 	if err != nil {
 		return err
 	}
 	return sqlDB.Close()
+}
+
+func (d *DbRepo) Shutdown(logger *zap.Logger) {
+	if err := d.DbWClose(); err != nil {
+		logger.Error("dbw close err", zap.Error(err))
+	} else {
+		logger.Info("dbw close success")
+	}
+
+	if err := d.DbRClose(); err != nil {
+		logger.Error("dbr close err", zap.Error(err))
+	} else {
+		logger.Info("dbr close success")
+	}
 }
 
 func dbConnect(user, pass, addr, dbName string) (*gorm.DB, error) {

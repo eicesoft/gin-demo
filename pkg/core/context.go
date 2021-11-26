@@ -2,17 +2,17 @@ package core
 
 import (
 	"bytes"
-	stdctx "context"
+	stdContext "eicesoft/web-demo/pkg/context"
 	"eicesoft/web-demo/pkg/errno"
-	"eicesoft/web-demo/pkg/trace"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"go.uber.org/zap"
 )
 
 const (
@@ -25,11 +25,7 @@ const (
 	_AbortErrorName = "_abort_error_"
 )
 
-type Trace = trace.T
-
 type HandlerFunc func(c Context)
-
-//type Trace = trace.T
 
 var contextPool = &sync.Pool{
 	New: func() interface{} {
@@ -88,7 +84,7 @@ type Context interface {
 	// URI 获取 unescape 后的 Request.URL.RequestURI()
 	URI() string
 	// RequestContext 获取请求的 context (当 client 关闭后，会自动 canceled)
-	RequestContext() StdContext
+	RequestContext() stdContext.StdContext
 	// ResponseWriter 获取 ResponseWriter 对象
 	ResponseWriter() gin.ResponseWriter
 	Payload(payload interface{})
@@ -106,8 +102,8 @@ type Context interface {
 	// SetHeader 设置 Header
 	SetHeader(key, value string)
 
-	Trace() Trace
-	setTrace(trace Trace)
+	Trace() stdContext.Trace
+	setTrace(trace stdContext.Trace)
 	disableTrace()
 
 	// Logger 获取 Logger 对象
@@ -121,12 +117,6 @@ type Context interface {
 
 type context struct {
 	ctx *gin.Context
-}
-
-type StdContext struct {
-	stdctx.Context
-	Trace
-	*zap.Logger
 }
 
 // RequestInputParams 获取所有参数
@@ -177,11 +167,11 @@ func (c *context) URI() string {
 }
 
 // RequestContext 获取请求的 context (当client关闭后，会自动canceled)
-func (c *context) RequestContext() StdContext {
-	return StdContext{
-		c.ctx.Request.Context(),
-		c.Trace(),
-		c.Logger(),
+func (c *context) RequestContext() stdContext.StdContext {
+	return stdContext.StdContext{
+		Context: c.ctx.Request.Context(),
+		Trace:   c.Trace(),
+		Logger:  c.Logger(),
 	}
 }
 
@@ -208,9 +198,10 @@ func (c *context) Payload(payload interface{}) {
 }
 
 func (c *context) getPayload() interface{} {
-	if payload, ok := c.ctx.Get(_PayloadName); ok != false {
+	if payload, ok := c.ctx.Get(_PayloadName); ok {
 		return payload
 	}
+
 	return nil
 }
 
@@ -275,13 +266,13 @@ func (c *context) abortError() errno.Error {
 	return err.(errno.Error)
 }
 
-func (c *context) Trace() Trace {
+func (c *context) Trace() stdContext.Trace {
 	t, ok := c.ctx.Get(_TraceName)
 	if !ok || t == nil {
 		return nil
 	}
 
-	return t.(Trace)
+	return t.(stdContext.Trace)
 }
 
 func (c *context) Header() http.Header {
@@ -305,7 +296,7 @@ func (c *context) SetHeader(key, value string) {
 	c.ctx.Header(key, value)
 }
 
-func (c *context) setTrace(trace Trace) {
+func (c *context) setTrace(trace stdContext.Trace) {
 	c.ctx.Set(_TraceName, trace)
 }
 

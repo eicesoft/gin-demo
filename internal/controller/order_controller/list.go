@@ -2,6 +2,7 @@ package order_controller
 
 import (
 	"eicesoft/web-demo/pkg/core"
+	"eicesoft/web-demo/pkg/trace"
 )
 
 //type orderListResponse struct {
@@ -22,9 +23,10 @@ import (
 func (h *handler) List() *core.RouteInfo {
 	return &core.RouteInfo{
 		Method: core.GET,
-		Path: "list",
+		Path:   "list",
 		Closure: func(c core.Context) {
 			list := h.orderService.List(c)
+			c.Trace().AppendDebug(&trace.Debug{Key: "项目", Value: list})
 			//res := new(orderListResponse)
 			//res.Code = 200
 			//res.Data = list
