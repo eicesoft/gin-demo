@@ -1,9 +1,6 @@
 package core
 
 import (
-	"eicesoft/web-demo/pkg/color"
-	"eicesoft/web-demo/pkg/env"
-	"fmt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,9 +50,9 @@ func (r *router) WrapRouters(routes ...*RouteInfo) {
 	for i := range routes {
 		route := *routes[i]
 
-		if !env.Get().IsProd() {
-			fmt.Println(color.Green(fmt.Sprintf("* register route: %s/%s", r.group.BasePath(), route.Path)))
-		}
+		//if !env.Get().IsProd() {
+			//fmt.Println(color.Green(fmt.Sprintf("* register route: %s/%s", r.group.BasePath(), route.Path)))
+		//}
 
 		switch route.Method {
 		case GET:
